@@ -881,8 +881,9 @@ bool HDevice::ConnectFilters()
 
 	if (videoCapture != NULL) {
 		/* use hardware tonemapper for narrow format (SDR), not wide (HDR) */
-		const bool enable_tonemapper = videoConfig.format !=
-					       VideoFormat::P010;
+		const bool enable_tonemapper =
+			videoConfig.format != VideoFormat::P010 &&
+			!videoConfig.disableTonemapper;
 		SetVendorTonemapperUsage(videoFilter, enable_tonemapper);
 
 		success = ConnectPins(PIN_CATEGORY_CAPTURE, MEDIATYPE_Video,

@@ -182,6 +182,9 @@ struct VideoConfig : Config {
 
 	/** Desired video format. */
 	VideoFormat format = VideoFormat::Any;
+
+	/** Keep the device's hardware tonemapper off even for 8-bit formats */
+	bool disableTonemapper = false;
 };
 
 struct AudioConfig : Config {
