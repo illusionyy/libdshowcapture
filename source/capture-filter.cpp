@@ -129,6 +129,7 @@ STDMETHODIMP CapturePin::Disconnect()
 		return S_FALSE;
 
 	connectedPin = nullptr;
+	allocator.Clear();
 	return S_OK;
 }
 
@@ -274,9 +275,21 @@ STDMETHODIMP CapturePin::NotifyAllocator(IMemAllocator *pAllocator,
 {
 	PrintFunc(L"CapturePin::NotifyAllocator");
 
-	DSHOW_UNUSED(pAllocator);
 	DSHOW_UNUSED(bReadOnly);
+	allocator = pAllocator;
 	return S_OK;
+}
+
+long CapturePin::GetBufferCount() const
+{
+	if (!allocator)
+		return 0;
+
+	ALLOCATOR_PROPERTIES props = {};
+	if (FAILED(allocator->GetProperties(&props)))
+		return 0;
+
+	return props.cBuffers;
 }
 
 STDMETHODIMP CapturePin::GetAllocatorRequirements(ALLOCATOR_PROPERTIES *pProps)

@@ -45,6 +45,7 @@ class CapturePin : public IPin, public IMemInputPin {
 	ComPtr<IPin> connectedPin;
 	CaptureFilter *filter;
 	MediaType connectedMediaType;
+	ComPtr<IMemAllocator> allocator;
 	volatile bool flushing = false;
 
 	bool IsValidMediaType(const AM_MEDIA_TYPE *pmt) const;
@@ -85,6 +86,8 @@ public:
 	STDMETHODIMP ReceiveMultiple(IMediaSample **pSamples, long nSamples,
 				     long *nSamplesProcessed);
 	STDMETHODIMP ReceiveCanBlock();
+
+	long GetBufferCount() const;
 };
 
 class CaptureFilter : public IBaseFilter {

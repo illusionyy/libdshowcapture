@@ -22,6 +22,7 @@
 #include <vector>
 #include <string>
 #include <functional>
+#include <memory>
 
 #ifdef DSHOWCAPTURE_EXPORTS
 #define DSHOWCAPTURE_EXPORT __declspec(dllexport)
@@ -54,6 +55,12 @@ typedef std::function<void(const VideoConfig &config, unsigned char *data,
 			   size_t size, long long startTime, long long stopTime,
 			   long rotation)>
 	VideoProc;
+
+/* sample keeps data valid until the last copy is released */
+typedef std::function<void(const VideoConfig &config, unsigned char *data,
+			   size_t size, long long startTime, long long stopTime,
+			   long rotation, const std::shared_ptr<void> &sample)>
+	VideoSampleProc;
 
 typedef std::function<void(const AudioConfig &config, unsigned char *data,
 			   size_t size, long long startTime, long long stopTime)>
@@ -167,6 +174,15 @@ struct Config : DeviceId {
 struct VideoConfig : Config {
 	VideoProc callback;
 	ReactivateProc reactivateCallback;
+
+	/** Used instead of callback when set, uncompressed formats only */
+	VideoSampleProc sampleCallback;
+
+	/** Capture buffers to request from the device, 0 keeps its default */
+	long bufferCount = 0;
+
+	/** Buffers in the upstream allocator, 0 when unknown */
+	long sampleBuffers = 0;
 
 	/** Desired width/height of video. */
 	int cx = 0, cy_abs = 0;

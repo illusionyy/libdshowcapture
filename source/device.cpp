@@ -199,6 +199,11 @@ inline void HDevice::SendToCallback(bool video, unsigned char *data,
 				     stopTime);
 }
 
+static void ReleaseSample(void *sample)
+{
+	((IMediaSample *)sample)->Release();
+}
+
 void HDevice::Receive(bool isVideo, IMediaSample *sample)
 {
 	BYTE *ptr;
@@ -280,7 +285,21 @@ void HDevice::Receive(bool isVideo, IMediaSample *sample)
 				  (unsigned char *)ptr + size);
 
 	} else if (hasTime) {
-		SendToCallback(isVideo, ptr, size, startTime, stopTime, roll);
+		if (isVideo && videoConfig.sampleCallback) {
+			if (!videoConfig.sampleBuffers && videoCapture)
+				videoConfig.sampleBuffers =
+					videoCapture->GetPin()->GetBufferCount();
+
+			/* the sample stays out of the allocator while held */
+			sample->AddRef();
+			const std::shared_ptr<void> hold(sample, ReleaseSample);
+			videoConfig.sampleCallback(videoConfig, ptr, size,
+						   startTime, stopTime, roll,
+						   hold);
+		} else {
+			SendToCallback(isVideo, ptr, size, startTime, stopTime,
+				       roll);
+		}
 	}
 }
 
@@ -871,6 +890,30 @@ void HDevice::SetAudioBuffering(int bufferingMs)
 			  hr);
 }
 
+void HDevice::SetVideoBufferCount(long count)
+{
+	ComPtr<IPin> pin;
+	bool success = GetFilterPin(videoFilter, MEDIATYPE_Video,
+				    PIN_CATEGORY_CAPTURE, PINDIR_OUTPUT, &pin);
+	if (!success)
+		return;
+
+	ComQIPtr<IAMBufferNegotiation> neg(pin);
+	if (!neg)
+		return;
+
+	ALLOCATOR_PROPERTIES props;
+	props.cBuffers = count;
+	props.cbBuffer = -1;
+	props.cbAlign = -1;
+	props.cbPrefix = -1;
+	HRESULT hr = neg->SuggestAllocatorProperties(&props);
+	if (FAILED(hr))
+		WarningHR(L"Could not set allocator properties on video "
+			  L"capture pin",
+			  hr);
+}
+
 bool HDevice::ConnectFilters()
 {
 	bool success = true;
@@ -885,6 +928,10 @@ bool HDevice::ConnectFilters()
 			videoConfig.format != VideoFormat::P010 &&
 			!videoConfig.disableTonemapper;
 		SetVendorTonemapperUsage(videoFilter, enable_tonemapper);
+
+		if (videoConfig.bufferCount > 0)
+			SetVideoBufferCount(videoConfig.bufferCount);
+		videoConfig.sampleBuffers = 0;
 
 		success = ConnectPins(PIN_CATEGORY_CAPTURE, MEDIATYPE_Video,
 				      videoFilter, videoCapture);
